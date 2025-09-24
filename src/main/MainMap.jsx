@@ -17,9 +17,10 @@ import MapOverlay from '../map/overlay/MapOverlay';
 import MapGeocoder from '../map/geocoder/MapGeocoder';
 import MapScale from '../map/MapScale';
 import MapNotification from '../map/notification/MapNotification';
+import MapRadiusSearchResults from '../map/main/MapRadiusSearchResults';
 import useFeatures from '../common/util/useFeatures';
 
-const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
+const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSearchResults, radiusSearchInfo }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -49,6 +50,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
         <MapDefaultCamera />
         <MapSelectedDevice />
         <PoiMap />
+        <MapRadiusSearchResults results={radiusSearchResults} searchInfo={radiusSearchInfo} />
       </MapView>
       <MapScale />
       <MapCurrentLocation />

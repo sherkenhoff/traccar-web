@@ -77,6 +77,8 @@ const MainPage = () => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
+  const [radiusSearchResults, setRadiusSearchResults] = useState([]);
+  const [radiusSearchInfo, setRadiusSearchInfo] = useState(null);
   const selectedPosition = filteredPositions.find((position) => selectedDeviceId && position.deviceId === selectedDeviceId);
 
   const [filteredDevices, setFilteredDevices] = useState([]);
@@ -94,6 +96,11 @@ const MainPage = () => {
 
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
+  const onRadiusSearchResults = useCallback((results, searchInfo) => {
+    setRadiusSearchResults(results);
+    setRadiusSearchInfo(searchInfo);
+  }, []);
+
   useEffect(() => {
     if (!desktop && mapOnSelect && selectedDeviceId) {
       setDevicesOpen(false);
@@ -109,6 +116,8 @@ const MainPage = () => {
           filteredPositions={filteredPositions}
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
+          radiusSearchResults={radiusSearchResults}
+          radiusSearchInfo={radiusSearchInfo}
         />
       )}
       <div className={classes.sidebar}>
@@ -125,6 +134,7 @@ const MainPage = () => {
             setFilterSort={setFilterSort}
             filterMap={filterMap}
             setFilterMap={setFilterMap}
+            onRadiusSearchResults={onRadiusSearchResults}
           />
         </Paper>
         <div className={classes.middle}>
@@ -134,6 +144,8 @@ const MainPage = () => {
                 filteredPositions={filteredPositions}
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
+                radiusSearchResults={radiusSearchResults}
+                radiusSearchInfo={radiusSearchInfo}
               />
             </div>
           )}

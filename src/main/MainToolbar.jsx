@@ -13,6 +13,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { useDeviceReadonly } from '../common/util/permissions';
 import DeviceRow from './DeviceRow';
+import RadiusSearch from './RadiusSearch';
 
 const useStyles = makeStyles()((theme) => ({
   toolbar: {
@@ -40,6 +41,7 @@ const MainToolbar = ({
   setFilterSort,
   filterMap,
   setFilterMap,
+  onRadiusSearchResults,
 }) => {
   const { classes } = useStyles();
   const theme = useTheme();
@@ -169,6 +171,7 @@ const MainToolbar = ({
           </FormGroup>
         </div>
       </Popover>
+      <RadiusSearch onResultsFound={onRadiusSearchResults} />
       <IconButton edge="end" onClick={() => navigate('/settings/device')} disabled={deviceReadonly}>
         <Tooltip open={!deviceReadonly && Object.keys(devices).length === 0} title={t('deviceRegisterFirst')} arrow>
           <AddIcon />
