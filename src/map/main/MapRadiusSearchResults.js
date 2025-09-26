@@ -23,8 +23,10 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
 
   const resultsSourceId = `${id}-results`;
   const radiusSourceId = `${id}-radius`;
+  const centerSourceId = `${id}-center`;
   const resultsLayerId = `${id}-results-layer`;
   const radiusLayerId = `${id}-radius-layer`;
+  const centerLayerId = `${id}-center-layer`;
 
   useEffect(() => {
     if (popup) {
@@ -40,11 +42,17 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       if (map.getLayer(radiusLayerId)) {
         map.removeLayer(radiusLayerId);
       }
+      if (map.getLayer(centerLayerId)) {
+        map.removeLayer(centerLayerId);
+      }
       if (map.getSource(resultsSourceId)) {
         map.removeSource(resultsSourceId);
       }
       if (map.getSource(radiusSourceId)) {
         map.removeSource(radiusSourceId);
+      }
+      if (map.getSource(centerSourceId)) {
+        map.removeSource(centerSourceId);
       }
       return;
     }
@@ -116,10 +124,46 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
             ],
           },
           'circle-color': theme.palette.primary.main,
-          'circle-opacity': 0.1,
+          'circle-opacity': 0.08, // Very light fill
           'circle-stroke-color': theme.palette.primary.main,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-opacity': 0.6,
+        },
+      });
+    }
+
+    // Add center marker for search location
+    const centerFeature = {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [searchInfo.longitude, searchInfo.latitude],
+      },
+      properties: {
+        isCenter: true,
+      },
+    };
+
+    if (map.getSource(centerSourceId)) {
+      map.getSource(centerSourceId).setData(centerFeature);
+    } else {
+      map.addSource(centerSourceId, {
+        type: 'geojson',
+        data: centerFeature,
+      });
+    }
+
+    if (!map.getLayer(centerLayerId)) {
+      map.addLayer({
+        id: centerLayerId,
+        type: 'circle',
+        source: centerSourceId,
+        paint: {
+          'circle-radius': 8,
+          'circle-color': theme.palette.primary.main,
+          'circle-opacity': 0.9,
+          'circle-stroke-color': '#ffffff',
           'circle-stroke-width': 2,
-          'circle-stroke-opacity': 0.8,
         },
       });
     }
@@ -234,11 +278,17 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       if (map.getLayer(radiusLayerId)) {
         map.removeLayer(radiusLayerId);
       }
+      if (map.getLayer(centerLayerId)) {
+        map.removeLayer(centerLayerId);
+      }
       if (map.getSource(resultsSourceId)) {
         map.removeSource(resultsSourceId);
       }
       if (map.getSource(radiusSourceId)) {
         map.removeSource(radiusSourceId);
+      }
+      if (map.getSource(centerSourceId)) {
+        map.removeSource(centerSourceId);
       }
     };
   }, [results, searchInfo, devices, theme, popup]);
