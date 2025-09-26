@@ -272,11 +272,27 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         
         // Add general map click handler to close popups when clicking elsewhere
         const handleMapClick = (e) => {
-          // Check if click was on a popup or marker
+          // Check if click was on a marker
           const clickedOnMarker = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] }).length > 0;
-          const clickedOnPopup = e.originalEvent.target.closest('.maplibregl-popup');
           
-          if (!clickedOnMarker && !clickedOnPopup && popup) {
+          // If clicked on marker, let the marker click handler deal with it
+          if (clickedOnMarker) {
+            return;
+          }
+          
+          // Check if click was inside a popup element
+          const popupElements = document.querySelectorAll('.maplibregl-popup');
+          let clickedInsidePopup = false;
+          
+          for (const popupEl of popupElements) {
+            if (popupEl.contains(e.originalEvent.target)) {
+              clickedInsidePopup = true;
+              break;
+            }
+          }
+          
+          // If not clicked on marker or inside popup, close the popup
+          if (!clickedInsidePopup && popup) {
             popup.remove();
             setPopup(null);
           }
@@ -297,8 +313,26 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         });
       }
 
-      // Note: Removed automatic fitBounds to prevent unwanted panning/zooming
-      // User can manually pan/zoom to view results if needed
+      // Smart pan-to-center: Only pan if we're not already close to the search location
+      const currentCenter = map.getCenter();
+      const currentLat = currentCenter.lat;
+      const currentLng = currentCenter.lng;
+      const searchLat = searchInfo.latitude;
+      const searchLng = searchInfo.longitude;
+      
+      // Calculate distance in degrees (rough approximation)
+      const latDiff = Math.abs(currentLat - searchLat);
+      const lngDiff = Math.abs(currentLng - searchLng);
+      const maxDiff = Math.max(latDiff, lngDiff);
+      
+      // If we're more than ~1km away (rough degree approximation), pan to center
+      const threshold = 0.01; // Approximately 1km
+      if (maxDiff > threshold) {
+        map.easeTo({
+          center: [searchLng, searchLat],
+          duration: 1000
+        });
+      }
     }
 
     return () => {
