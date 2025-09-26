@@ -1,16 +1,25 @@
-import { useId, useEffect } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../core/MapView';
-import { formatTime, getStatusColor } from '../../common/util/formatter';
+import { formatTime, getStatusColor, formatSpeed, formatDistance } from '../../common/util/formatter';
 import { mapIconKey } from '../core/preloadImages';
 import { useSelector } from 'react-redux';
 import maplibregl from 'maplibre-gl';
+
+const DEVICE_COLORS = [
+  '#FF6B6B',
+  '#4ECDC4',
+  '#45B7D1',
+  '#96CEB4',
+  '#FECA57',
+];
 
 const MapRadiusSearchResults = ({ results, searchInfo }) => {
   const id = useId();
   const theme = useTheme();
 
   const devices = useSelector((state) => state.devices.items);
+  const [popup, setPopup] = useState(null);
 
   const resultsSourceId = `${id}-results`;
   const radiusSourceId = `${id}-radius`;
@@ -18,6 +27,11 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
   const radiusLayerId = `${id}-radius-layer`;
 
   useEffect(() => {
+    if (popup) {
+      popup.remove();
+      setPopup(null);
+    }
+
     if (!results || !searchInfo) {
       // Clean up any existing layers
       if (map.getLayer(resultsLayerId)) {
@@ -34,8 +48,13 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       }
       return;
     }
+  
+    const uniqueDeviceIds = [...new Set(results.map(r => r.deviceId))];
+    const deviceColorMap = {};
+    uniqueDeviceIds.forEach((deviceId, index) => {
+      deviceColorMap[deviceId] = DEVICE_COLORS[index % DEVICE_COLORS.length];
+    });
 
-    // Create circle for search radius
     const radiusFeature = {
       type: 'Feature',
       geometry: {
@@ -47,9 +66,11 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       },
     };
 
-    // Create features for search results
+    // Create features for search results with enhanced data
     const resultFeatures = results.map((position) => {
       const device = devices[position.deviceId];
+      const deviceColor = deviceColorMap[position.deviceId];
+      
       return {
         type: 'Feature',
         geometry: {
@@ -61,8 +82,13 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          category: mapIconKey(device?.category),
-          color: position.attributes?.color || getStatusColor(device?.status) || 'red',
+          speed: position.speed ? formatSpeed(position.speed, 'kmh') : 'N/A',
+          altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
+          accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
+          address: position.address || 'Address not available',
+          deviceColor: deviceColor,
+          latitude: position.latitude.toFixed(6),
+          longitude: position.longitude.toFixed(6),
         },
       };
     });
@@ -120,11 +146,59 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
           type: 'circle',
           source: resultsSourceId,
           paint: {
-            'circle-radius': 8,
-            'circle-color': ['get', 'color'],
+            'circle-radius': 4,
+            'circle-color': ['get', 'deviceColor'],
             'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 2,
+            'circle-stroke-width': 1,
+            'circle-opacity': 0.8,
           },
+        });
+        
+        // Add click handler for popups
+        map.on('click', resultsLayerId, (e) => {
+          const feature = e.features[0];
+          const props = feature.properties;
+          
+          // Close existing popup
+          if (popup) {
+            popup.remove();
+          }
+          
+          // Create popup content
+          const popupContent = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.4;">
+              <div style="font-weight: bold; color: ${props.deviceColor}; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                ${props.deviceName}
+              </div>
+              <div style="margin-bottom: 4px;"><strong>Time:</strong> ${props.fixTime}</div>
+              <div style="margin-bottom: 4px;"><strong>Location:</strong> ${props.latitude}, ${props.longitude}</div>
+              ${props.speed !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Speed:</strong> ${props.speed}</div>` : ''}
+              ${props.altitude !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Altitude:</strong> ${props.altitude}</div>` : ''}
+              ${props.accuracy !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Accuracy:</strong> ${props.accuracy}</div>` : ''}
+              ${props.address !== 'Address not available' ? `<div style="margin-bottom: 4px; font-size: 12px; color: #666;"><strong>Address:</strong> ${props.address}</div>` : ''}
+            </div>
+          `;
+          
+          // Create new popup
+          const newPopup = new maplibregl.Popup({
+            offset: [0, -10],
+            closeButton: true,
+            closeOnClick: false,
+          })
+            .setLngLat(feature.geometry.coordinates)
+            .setHTML(popupContent)
+            .addTo(map);
+            
+          setPopup(newPopup);
+        });
+        
+        // Change cursor on hover
+        map.on('mouseenter', resultsLayerId, () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+        
+        map.on('mouseleave', resultsLayerId, () => {
+          map.getCanvas().style.cursor = '';
         });
       }
 
@@ -144,8 +218,17 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
     }
 
     return () => {
-      // Cleanup on component unmount
+      // Clean up popup
+      if (popup) {
+        popup.remove();
+        setPopup(null);
+      }
+      
+      // Remove event listeners
       if (map.getLayer(resultsLayerId)) {
+        map.off('click', resultsLayerId);
+        map.off('mouseenter', resultsLayerId);
+        map.off('mouseleave', resultsLayerId);
         map.removeLayer(resultsLayerId);
       }
       if (map.getLayer(radiusLayerId)) {
@@ -158,7 +241,7 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         map.removeSource(radiusSourceId);
       }
     };
-  }, [results, searchInfo, devices, theme]);
+  }, [results, searchInfo, devices, theme, popup]);
 
   return null;
 };
