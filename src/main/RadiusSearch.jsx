@@ -135,11 +135,17 @@ const RadiusSearch = ({ onResultsFound }) => {
     onResultsFound([], null);
   };
 
+  const handleSearchPanelOpen = () => {
+    setLatitude('');
+    setLongitude('');
+    setSearchAnchorEl(searchRef.current);
+  };
+
   return (
     <>
       <IconButton 
         ref={searchRef}
-        onClick={() => setSearchAnchorEl(searchRef.current)}
+        onClick={handleSearchPanelOpen}
         title={t('Radius Search')}
       >
         <SearchIcon />
