@@ -20,7 +20,7 @@ import MapNotification from '../map/notification/MapNotification';
 import MapRadiusSearchResults from '../map/main/MapRadiusSearchResults';
 import useFeatures from '../common/util/useFeatures';
 
-const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSearchResults, radiusSearchInfo }) => {
+const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSearchResults, radiusSearchInfo, onRadiusSearch }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -50,7 +50,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSea
         <MapDefaultCamera />
         <MapSelectedDevice />
         <PoiMap />
-        <MapRadiusSearchResults results={radiusSearchResults} searchInfo={radiusSearchInfo} />
+        <MapRadiusSearchResults results={radiusSearchResults} searchInfo={radiusSearchInfo} onSearch={onRadiusSearch} />
       </MapView>
       <MapScale />
       <MapCurrentLocation />

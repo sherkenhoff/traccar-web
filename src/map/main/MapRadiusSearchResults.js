@@ -1,4 +1,4 @@
-import { useId, useEffect, useState } from 'react';
+import { useId, useEffect, useState, useCallback } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../core/MapView';
 import { formatTime, getStatusColor, formatSpeed, formatDistance } from '../../common/util/formatter';
@@ -42,12 +42,13 @@ const createCircleFeature = (longitude, latitude, radiusInMeters, steps = 64) =>
   };
 };
 
-const MapRadiusSearchResults = ({ results, searchInfo }) => {
+const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const id = useId();
   const theme = useTheme();
 
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
+  const [currentRadius, setCurrentRadius] = useState(searchInfo.radius);
 
   const resultsSourceId = `${id}-results`;
   const radiusSourceId = `${id}-radius`;
@@ -55,6 +56,8 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
   const resultsLayerId = `${id}-results-layer`;
   const radiusLayerId = `${id}-radius-layer`;
   const centerLayerId = `${id}-center-layer`;
+  const resizeHandleSourceId = `${id}-resize-handle`;
+  const resizeHandleLayerId = `${id}-resize-handle-layer`;
 
   // Separate effect for popup cleanup to avoid redrawing map layers
   useEffect(() => {
@@ -63,6 +66,17 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         popup.remove();
       }
     };
+  }, [popup]);
+
+  useEffect(() => {
+    const onZoomEnd = () => {
+      if (popup) {
+        popup.remove();
+        setPopup(null);
+      }
+    };
+    map.on('zoomend', onZoomEnd);
+    return () => map.off('zoomend', onZoomEnd);
   }, [popup]);
 
   useEffect(() => {
@@ -80,6 +94,9 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       if (map.getLayer(centerLayerId)) {
         map.removeLayer(centerLayerId);
       }
+      if (map.getLayer(resizeHandleLayerId)) {
+        map.removeLayer(resizeHandleLayerId);
+      }
       if (map.getSource(resultsSourceId)) {
         map.removeSource(resultsSourceId);
       }
@@ -88,6 +105,9 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       }
       if (map.getSource(centerSourceId)) {
         map.removeSource(centerSourceId);
+      }
+      if (map.getSource(resizeHandleSourceId)) {
+        map.removeSource(resizeHandleSourceId);
       }
       return;
     }
@@ -100,9 +120,9 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
 
     // Create circle polygon for search radius
     const radiusFeature = createCircleFeature(
-      searchInfo.longitude, 
-      searchInfo.latitude, 
-      searchInfo.radius
+      searchInfo.longitude,
+      searchInfo.latitude,
+      currentRadius,
     );
 
     // Create features for search results with enhanced data
@@ -162,6 +182,44 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
           'line-color': theme.palette.primary.main,
           'line-width': 2,
           'line-opacity': 0.6,
+        },
+      });
+    }
+
+    // Add resize handle
+    const earthRadius = 6371000;
+    const lonOffset = (currentRadius / earthRadius) * (180 / Math.PI) / Math.cos((searchInfo.latitude * Math.PI) / 180);
+    const handleFeature = {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [searchInfo.longitude + lonOffset, searchInfo.latitude],
+      },
+      properties: {
+        isHandle: true,
+      },
+    };
+
+    if (map.getSource(resizeHandleSourceId)) {
+      map.getSource(resizeHandleSourceId).setData(handleFeature);
+    } else {
+      map.addSource(resizeHandleSourceId, {
+        type: 'geojson',
+        data: handleFeature,
+      });
+    }
+
+    if (!map.getLayer(resizeHandleLayerId)) {
+      map.addLayer({
+        id: resizeHandleLayerId,
+        type: 'circle',
+        source: resizeHandleSourceId,
+        paint: {
+          'circle-radius': 10,
+          'circle-color': theme.palette.primary.main,
+          'circle-opacity': 0.9,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
         },
       });
     }
@@ -376,6 +434,9 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       if (map.getLayer(centerLayerId)) {
         map.removeLayer(centerLayerId);
       }
+      if (map.getLayer(resizeHandleLayerId)) {
+        map.removeLayer(resizeHandleLayerId);
+      }
       if (map.getSource(resultsSourceId)) {
         map.removeSource(resultsSourceId);
       }
@@ -385,8 +446,11 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       if (map.getSource(centerSourceId)) {
         map.removeSource(centerSourceId);
       }
+      if (map.getSource(resizeHandleSourceId)) {
+        map.removeSource(resizeHandleSourceId);
+      }
     };
-  }, [results, searchInfo, devices, theme]); // Removed 'popup' from dependencies to prevent redrawing
+  }, [results, searchInfo, devices, theme, currentRadius]); // Removed 'popup' from dependencies to prevent redrawing
 
   return null;
 };

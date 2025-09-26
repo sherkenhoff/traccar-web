@@ -118,6 +118,7 @@ const MainPage = () => {
           onEventsClick={onEventsClick}
           radiusSearchResults={radiusSearchResults}
           radiusSearchInfo={radiusSearchInfo}
+          onRadiusSearch={onRadiusSearchResults}
         />
       )}
       <div className={classes.sidebar}>
@@ -146,6 +147,7 @@ const MainPage = () => {
                 onEventsClick={onEventsClick}
                 radiusSearchResults={radiusSearchResults}
                 radiusSearchInfo={radiusSearchInfo}
+                onRadiusSearch={onRadiusSearchResults}
               />
             </div>
           )}

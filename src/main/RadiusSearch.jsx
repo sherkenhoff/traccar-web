@@ -83,11 +83,12 @@ const RadiusSearch = ({ onResultsFound }) => {
   };
 
   // Perform radius search
-  const performSearch = async () => {
+  const performSearch = async (searchParams) => {
     setLoading(true);
     try {
-      let searchLat = parseFloat(latitude);
-      let searchLon = parseFloat(longitude);
+      let searchLat = searchParams ? searchParams.latitude : parseFloat(latitude);
+      let searchLon = searchParams ? searchParams.longitude : parseFloat(longitude);
+      const searchRadius = searchParams ? searchParams.radius : parseFloat(radius);
 
       // If no coordinates but location name provided, geocode first
       if ((!searchLat || !searchLon) && locationName) {
@@ -100,14 +101,14 @@ const RadiusSearch = ({ onResultsFound }) => {
         }
       }
 
-      if (!searchLat || !searchLon || !radius) {
+      if (!searchLat || !searchLon || !searchRadius) {
         throw new Error('Please provide valid coordinates and radius');
       }
 
       const params = new URLSearchParams({
         latitude: searchLat.toString(),
         longitude: searchLon.toString(),
-        radius: radius.toString(),
+        radius: searchRadius.toString(),
       });
 
       if (deviceId) {
@@ -117,7 +118,7 @@ const RadiusSearch = ({ onResultsFound }) => {
       const response = await fetchOrThrow(`/api/positions/radius?${params}`);
       const positions = await response.json();
       
-      onResultsFound(positions, { latitude: searchLat, longitude: searchLon, radius: parseFloat(radius) });
+      onResultsFound(positions, { latitude: searchLat, longitude: searchLon, radius: searchRadius });
       setSearchAnchorEl(null);
     } catch (error) {
       console.error('Search error:', error);
@@ -125,6 +126,10 @@ const RadiusSearch = ({ onResultsFound }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => {
+    performSearch();
   };
 
   const clearSearch = () => {
@@ -233,7 +238,7 @@ const RadiusSearch = ({ onResultsFound }) => {
             </Button>
             <Button 
               variant="contained" 
-              onClick={performSearch}
+              onClick={handleSearch}
               disabled={loading}
             >
               {loading ? 'Searching...' : 'Search'}
