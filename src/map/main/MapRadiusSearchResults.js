@@ -14,6 +14,34 @@ const DEVICE_COLORS = [
   '#FECA57',
 ];
 
+// Helper function to create a circle polygon from center point and radius
+const createCircleFeature = (longitude, latitude, radiusInMeters, steps = 64) => {
+  const coords = [];
+  const earthRadius = 6371000; // Earth's radius in meters
+  
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i * 360) / steps;
+    const angleRad = (angle * Math.PI) / 180;
+    
+    // Calculate offset in degrees
+    const latOffset = (radiusInMeters / earthRadius) * (180 / Math.PI);
+    const lonOffset = (radiusInMeters / earthRadius) * (180 / Math.PI) / Math.cos((latitude * Math.PI) / 180);
+    
+    const newLat = latitude + latOffset * Math.cos(angleRad);
+    const newLon = longitude + lonOffset * Math.sin(angleRad);
+    
+    coords.push([newLon, newLat]);
+  }
+  
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [coords],
+    },
+  };
+};
+
 const MapRadiusSearchResults = ({ results, searchInfo }) => {
   const id = useId();
   const theme = useTheme();
@@ -63,16 +91,12 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       deviceColorMap[deviceId] = DEVICE_COLORS[index % DEVICE_COLORS.length];
     });
 
-    const radiusFeature = {
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [searchInfo.longitude, searchInfo.latitude],
-      },
-      properties: {
-        radius: searchInfo.radius,
-      },
-    };
+    // Create circle polygon for search radius
+    const radiusFeature = createCircleFeature(
+      searchInfo.longitude, 
+      searchInfo.latitude, 
+      searchInfo.radius
+    );
 
     // Create features for search results with enhanced data
     const resultFeatures = results.map((position) => {
@@ -190,16 +214,20 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
           type: 'circle',
           source: resultsSourceId,
           paint: {
-            'circle-radius': 4,
+            'circle-radius': 6,
             'circle-color': ['get', 'deviceColor'],
             'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 1,
+            'circle-stroke-width': 1.5,
             'circle-opacity': 0.8,
           },
         });
         
         // Add click handler for popups
         map.on('click', resultsLayerId, (e) => {
+          // Prevent map panning/default behavior
+          e.preventDefault();
+          e.originalEvent.stopPropagation();
+          
           const feature = e.features[0];
           const props = feature.properties;
           
@@ -235,6 +263,23 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
             
           setPopup(newPopup);
         });
+        
+        // Add general map click handler to close popups when clicking elsewhere
+        const handleMapClick = (e) => {
+          // Check if click was on a popup or marker
+          const clickedOnMarker = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] }).length > 0;
+          const clickedOnPopup = e.originalEvent.target.closest('.maplibregl-popup');
+          
+          if (!clickedOnMarker && !clickedOnPopup && popup) {
+            popup.remove();
+            setPopup(null);
+          }
+        };
+        
+        map.on('click', handleMapClick);
+        
+        // Store the handler for cleanup
+        map._radiusSearchClickHandler = handleMapClick;
         
         // Change cursor on hover
         map.on('mouseenter', resultsLayerId, () => {
@@ -275,6 +320,13 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         map.off('mouseleave', resultsLayerId);
         map.removeLayer(resultsLayerId);
       }
+      
+      // Remove general click handler
+      if (map._radiusSearchClickHandler) {
+        map.off('click', map._radiusSearchClickHandler);
+        delete map._radiusSearchClickHandler;
+      }
+      
       if (map.getLayer(radiusLayerId)) {
         map.removeLayer(radiusLayerId);
       }
