@@ -67,6 +67,9 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
       if (map.getLayer(resultsLayerId)) {
         map.removeLayer(resultsLayerId);
       }
+      if (map.getLayer(`${radiusLayerId}-outline`)) {
+        map.removeLayer(`${radiusLayerId}-outline`);
+      }
       if (map.getLayer(radiusLayerId)) {
         map.removeLayer(radiusLayerId);
       }
@@ -138,20 +141,23 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
     if (!map.getLayer(radiusLayerId)) {
       map.addLayer({
         id: radiusLayerId,
-        type: 'circle',
+        type: 'fill',
         source: radiusSourceId,
         paint: {
-          'circle-radius': {
-            stops: [
-              [0, 0],
-              [20, ['interpolate', ['linear'], ['zoom'], 0, 0, 20, ['*', ['get', 'radius'], 0.001]]],
-            ],
-          },
-          'circle-color': theme.palette.primary.main,
-          'circle-opacity': 0.08, // Very light fill
-          'circle-stroke-color': theme.palette.primary.main,
-          'circle-stroke-width': 1.5,
-          'circle-stroke-opacity': 0.6,
+          'fill-color': theme.palette.primary.main,
+          'fill-opacity': 0.1,
+        },
+      });
+      
+      // Add radius outline
+      map.addLayer({
+        id: `${radiusLayerId}-outline`,
+        type: 'line',
+        source: radiusSourceId,
+        paint: {
+          'line-color': theme.palette.primary.main,
+          'line-width': 2,
+          'line-opacity': 0.6,
         },
       });
     }
@@ -291,19 +297,8 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         });
       }
 
-      // Fit map to show all results and search radius
-      const bounds = new maplibregl.LngLatBounds();
-      bounds.extend([searchInfo.longitude, searchInfo.latitude]);
-      resultFeatures.forEach((feature) => {
-        bounds.extend(feature.geometry.coordinates);
-      });
-
-      // Add padding around the radius
-      const radiusInDegrees = searchInfo.radius / 111000; // Approximate conversion
-      bounds.extend([searchInfo.longitude + radiusInDegrees, searchInfo.latitude + radiusInDegrees]);
-      bounds.extend([searchInfo.longitude - radiusInDegrees, searchInfo.latitude - radiusInDegrees]);
-
-      map.fitBounds(bounds, { padding: 50 });
+      // Note: Removed automatic fitBounds to prevent unwanted panning/zooming
+      // User can manually pan/zoom to view results if needed
     }
 
     return () => {
@@ -327,6 +322,9 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         delete map._radiusSearchClickHandler;
       }
       
+      if (map.getLayer(`${radiusLayerId}-outline`)) {
+        map.removeLayer(`${radiusLayerId}-outline`);
+      }
       if (map.getLayer(radiusLayerId)) {
         map.removeLayer(radiusLayerId);
       }
