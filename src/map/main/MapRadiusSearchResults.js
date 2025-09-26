@@ -56,12 +56,16 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
   const radiusLayerId = `${id}-radius-layer`;
   const centerLayerId = `${id}-center-layer`;
 
+  // Separate effect for popup cleanup to avoid redrawing map layers
   useEffect(() => {
-    if (popup) {
-      popup.remove();
-      setPopup(null);
-    }
+    return () => {
+      if (popup) {
+        popup.remove();
+      }
+    };
+  }, [popup]);
 
+  useEffect(() => {
     if (!results || !searchInfo) {
       // Clean up any existing layers
       if (map.getLayer(resultsLayerId)) {
@@ -227,6 +231,13 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
             'circle-opacity': 0.8,
           },
         });
+      }
+      
+      // Always remove existing layer-specific handlers before adding new ones to prevent stacking
+      if (map.getLayer(resultsLayerId)) {
+        map.off('click', resultsLayerId);
+        map.off('mouseenter', resultsLayerId);
+        map.off('mouseleave', resultsLayerId);
         
         // Add click handler for popups
         map.on('click', resultsLayerId, (e) => {
@@ -269,6 +280,12 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
             
           setPopup(newPopup);
         });
+        
+        // Remove any existing general click handler first to prevent stacking
+        if (map._radiusSearchClickHandler) {
+          map.off('click', map._radiusSearchClickHandler);
+          delete map._radiusSearchClickHandler;
+        }
         
         // Add general map click handler to close popups when clicking elsewhere
         const handleMapClick = (e) => {
@@ -336,12 +353,6 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
     }
 
     return () => {
-      // Clean up popup
-      if (popup) {
-        popup.remove();
-        setPopup(null);
-      }
-      
       // Remove event listeners
       if (map.getLayer(resultsLayerId)) {
         map.off('click', resultsLayerId);
@@ -375,7 +386,7 @@ const MapRadiusSearchResults = ({ results, searchInfo }) => {
         map.removeSource(centerSourceId);
       }
     };
-  }, [results, searchInfo, devices, theme, popup]);
+  }, [results, searchInfo, devices, theme]); // Removed 'popup' from dependencies to prevent redrawing
 
   return null;
 };
