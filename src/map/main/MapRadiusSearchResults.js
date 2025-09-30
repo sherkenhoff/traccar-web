@@ -131,6 +131,8 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       const device = devices[position.deviceId];
       const deviceColor = deviceColorMap[position.deviceId];
 
+      console.log('FIXME - Position Speed:', position.speed, 'Speed Unit:', speedUnit);
+
       return {
         type: 'Feature',
         geometry: {
@@ -142,7 +144,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          speed: formatSpeed(position.speed, speedUnit, t),
+          speed: 'position.speed',
           altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
           accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
           address: position.address || 'Address not available',
