@@ -48,7 +48,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
-  const [currentRadius, setCurrentRadius] = useState(searchInfo.radius);
+  const [currentRadius, setCurrentRadius] = useState(searchInfo ? searchInfo.radius : 0);
 
   const resultsSourceId = `${id}-results`;
   const radiusSourceId = `${id}-radius`;
