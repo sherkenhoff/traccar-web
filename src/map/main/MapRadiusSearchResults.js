@@ -143,7 +143,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          speed: formatSpeed(position.speed, speedUnit || 'kph'),
+          speed: formatSpeed(position.speed, speedUnit, t),
           altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
           accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
           address: position.address || 'Address not available',
