@@ -1,8 +1,8 @@
-import { useId, useEffect, useState, useCallback } from 'react';
+import { useId, useEffect, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../core/MapView';
-import { formatTime, getStatusColor, formatSpeed, formatDistance } from '../../common/util/formatter';
-import { mapIconKey } from '../core/preloadImages';
+import { formatTime, formatSpeed } from '../../common/util/formatter';
+import { useAttributePreference } from '../../common/util/preferences';
 import { useSelector } from 'react-redux';
 import maplibregl from 'maplibre-gl';
 
@@ -49,6 +49,8 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
   const [currentRadius, setCurrentRadius] = useState(searchInfo ? searchInfo.radius : 0);
+  const speedUnit = useAttributePreference('speedUnit');
+
 
   const resultsSourceId = `${id}-results`;
   const radiusSourceId = `${id}-radius`;
@@ -141,7 +143,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          speed: position.speed ? formatSpeed(position.speed, 'kmh') : 'N/A',
+          speed: typeof position.speed === 'number' ? formatSpeed(position.speed, speedUnit) : 'N/A',
           altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
           accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
           address: position.address || 'Address not available',
