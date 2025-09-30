@@ -49,6 +49,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
   const [currentRadius, setCurrentRadius] = useState(searchInfo ? searchInfo.radius : 0);
+  const [isResizing, setIsResizing] = useState(false);
   const speedUnit = useAttributePreference('speedUnit');
 
   const resultsSourceId = `${id}-results`;
@@ -264,7 +265,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     }
 
     // Add search result markers
-    if (resultFeatures.length > 0) {
+    if (!isResizing && resultFeatures.length > 0) {
       const geojsonData = {
         type: 'FeatureCollection',
         features: resultFeatures,
@@ -469,6 +470,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
       e.preventDefault();
       map.getCanvas().style.cursor = 'grabbing';
+      setIsResizing(true);
 
       const onMouseMove = (moveEvent) => {
         const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
@@ -480,6 +482,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         map.getCanvas().style.cursor = '';
         map.off('mousemove', onMouseMove);
         map.off('mouseup', onMouseUp);
+        setIsResizing(false);
 
         const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
         const finalRadius = upEvent.lngLat.distanceTo(center);
