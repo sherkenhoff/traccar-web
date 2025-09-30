@@ -5,6 +5,7 @@ import { formatTime, formatSpeed } from '../../common/util/formatter';
 import { useAttributePreference } from '../../common/util/preferences';
 import { useSelector } from 'react-redux';
 import maplibregl from 'maplibre-gl';
+import { useTranslation } from '../common/components/LocalizationProvider';
 
 const DEVICE_COLORS = [
   '#FF6B6B',
@@ -45,6 +46,7 @@ const createCircleFeature = (longitude, latitude, radiusInMeters, steps = 64) =>
 const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const id = useId();
   const theme = useTheme();
+  const t = useTranslation();
 
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
@@ -132,8 +134,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       const device = devices[position.deviceId];
       const deviceColor = deviceColorMap[position.deviceId];
 
-      console.log('FIXME - Position Speed:', position.speed, 'Speed Unit:', speedUnit);
-
       return {
         type: 'Feature',
         geometry: {
@@ -145,7 +145,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          speed: 'position.speed',
+          speed: position.speed != null ? formatSpeed(position.speed, speedUnit, t) : 'N/A',
           altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
           accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
           address: position.address || 'Address not available',
@@ -454,7 +454,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         map.removeSource(resizeHandleSourceId);
       }
     };
-  }, [results, searchInfo, devices, theme, currentRadius]); // Removed 'popup' from dependencies to prevent redrawing
+  }, [results, searchInfo, devices, theme, currentRadius, speedUnit, t]); // Removed 'popup' from dependencies to prevent redrawing
 
   useEffect(() => {
     if (searchInfo) {
