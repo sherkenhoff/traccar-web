@@ -1,4 +1,4 @@
-import { useId, useEffect, useState } from 'react';
+import { useId, useEffect, useState, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../core/MapView';
 import { formatTime, formatSpeed } from '../../common/util/formatter';
@@ -50,6 +50,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
+  const popupRef = useRef(null);
   const [currentRadius, setCurrentRadius] = useState(searchInfo ? searchInfo.radius : 0);
   const [isResizing, setIsResizing] = useState(false);
   const speedUnit = useAttributePreference('speedUnit');
@@ -65,12 +66,16 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
   // Separate effect for popup cleanup to avoid redrawing map layers
   useEffect(() => {
+    popupRef.current = popup;
+  }, [popup]);
+
+  useEffect(() => {
     return () => {
-      if (popup) {
-        popup.remove();
+      if (popupRef.current) {
+        popupRef.current.remove();
       }
     };
-  }, [popup]);
+  }, []);
 
   useEffect(() => {
     const onZoomEnd = () => {
@@ -311,8 +316,8 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           const props = feature.properties;
           
           // Close existing popup
-          if (popup) {
-            popup.remove();
+          if (popupRef.current) {
+            popupRef.current.remove();
           }
           
           // Create popup content
@@ -342,46 +347,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
             
           setPopup(newPopup);
         });
-        
-        // Remove any existing general click handler first to prevent stacking
-        if (map._radiusSearchClickHandler) {
-          map.off('click', map._radiusSearchClickHandler);
-          delete map._radiusSearchClickHandler;
-        }
-        
-        // Add general map click handler to close popups when clicking elsewhere
-        const handleMapClick = (e) => {
-          // Check if click was on a marker
-          const clickedOnMarker = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] }).length > 0;
-          
-          // If clicked on marker, let the marker click handler deal with it
-          if (clickedOnMarker) {
-            return;
-          }
-          
-          // Check if click was inside a popup element
-          const popupElements = document.querySelectorAll('.maplibregl-popup');
-          let clickedInsidePopup = false;
-          
-          for (const popupEl of popupElements) {
-            if (popupEl.contains(e.originalEvent.target)) {
-              clickedInsidePopup = true;
-              break;
-            }
-          }
-          
-          // If not clicked on marker or inside popup, close the popup
-          if (!clickedInsidePopup && popup) {
-            popup.remove();
-            setPopup(null);
-          }
-        };
-        
-        map.on('click', handleMapClick);
-        
-        // Store the handler for cleanup
-        map._radiusSearchClickHandler = handleMapClick;
-        
+
         // Change cursor on hover
         map.on('mouseenter', resultsLayerId, () => {
           map.getCanvas().style.cursor = 'pointer';
@@ -423,12 +389,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         map.removeLayer(resultsLayerId);
       }
       
-      // Remove general click handler
-      if (map._radiusSearchClickHandler) {
-        map.off('click', map._radiusSearchClickHandler);
-        delete map._radiusSearchClickHandler;
-      }
-      
       if (map.getLayer(`${radiusLayerId}-outline`)) {
         map.removeLayer(`${radiusLayerId}-outline`);
       }
@@ -455,6 +415,45 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
     };
   }, [results, searchInfo, devices, theme, currentRadius, speedUnit, t]); // Removed 'popup' from dependencies to prevent redrawing
+
+  useEffect(() => {
+    const handleMapClick = (e) => {
+      // Check if click was on a marker
+      const clickedOnMarker = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] }).length > 0;
+
+      if (clickedOnMarker) {
+        return;
+      }
+
+      const popupElements = document.querySelectorAll('.maplibregl-popup');
+      let clickedInsidePopup = false;
+
+      for (const popupEl of popupElements) {
+        if (popupEl.contains(e.originalEvent.target)) {
+          clickedInsidePopup = true;
+          break;
+        }
+      }
+
+      if (!clickedInsidePopup) {
+        const activePopup = popupRef.current;
+
+        if (activePopup) {
+          activePopup.remove();
+
+          if (popup !== null) {
+            setPopup(null);
+          }
+        }
+      }
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [popup, resultsLayerId]);
 
   useEffect(() => {
     if (searchInfo) {
