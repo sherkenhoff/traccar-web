@@ -49,7 +49,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
   const [currentRadius, setCurrentRadius] = useState(searchInfo ? searchInfo.radius : 0);
-  const speedUnit = useAttributePreference('speedUnit');
+  const speedUnit = useAttributePreference('speedUnit', 'kph');
 
 
   const resultsSourceId = `${id}-results`;
@@ -131,8 +131,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     const resultFeatures = results.map((position) => {
       const device = devices[position.deviceId];
       const deviceColor = deviceColorMap[position.deviceId];
-      
-      console.log('Position Speed:', position.speed, 'Type:', typeof position.speed);
 
       return {
         type: 'Feature',
@@ -145,7 +143,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          speed: '---', // Bogus value for debugging
+          speed: formatSpeed(position.speed, speedUnit || 'kph'),
           altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
           accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
           address: position.address || 'Address not available',
@@ -455,6 +453,51 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
     };
   }, [results, searchInfo, devices, theme, currentRadius]); // Removed 'popup' from dependencies to prevent redrawing
+
+  useEffect(() => {
+    if (searchInfo) {
+      setCurrentRadius(searchInfo.radius);
+    }
+  }, [searchInfo]);
+
+  useEffect(() => {
+    const onMouseDown = (e) => {
+      if (e.features.length === 0 || !e.features[0].properties.isHandle) {
+        return;
+      }
+
+      e.preventDefault();
+      map.getCanvas().style.cursor = 'grabbing';
+
+      const onMouseMove = (moveEvent) => {
+        const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
+        const newRadius = moveEvent.lngLat.distanceTo(center);
+        setCurrentRadius(newRadius);
+      };
+
+      const onMouseUp = (upEvent) => {
+        map.getCanvas().style.cursor = '';
+        map.off('mousemove', onMouseMove);
+        map.off('mouseup', onMouseUp);
+
+        const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
+        const finalRadius = upEvent.lngLat.distanceTo(center);
+        
+        if (onSearch) {
+          onSearch({ ...searchInfo, radius: finalRadius });
+        }
+      };
+
+      map.on('mousemove', onMouseMove);
+      map.on('mouseup', onMouseUp);
+    };
+
+    map.on('mousedown', resizeHandleLayerId, onMouseDown);
+
+    return () => {
+      map.off('mousedown', resizeHandleLayerId, onMouseDown);
+    };
+  }, [searchInfo, onSearch, resizeHandleLayerId]);
 
   return null;
 };
