@@ -132,6 +132,8 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       const device = devices[position.deviceId];
       const deviceColor = deviceColorMap[position.deviceId];
       
+      console.log('Position Speed:', position.speed, 'Type:', typeof position.speed);
+
       return {
         type: 'Feature',
         geometry: {
@@ -143,7 +145,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           deviceId: position.deviceId,
           deviceName: device?.name || 'Unknown Device',
           fixTime: formatTime(position.fixTime, 'seconds'),
-          speed: typeof position.speed === 'number' ? formatSpeed(position.speed, speedUnit) : 'N/A',
+          speed: '---', // Bogus value for debugging
           altitude: position.altitude ? `${Math.round(position.altitude)}m` : 'N/A',
           accuracy: position.accuracy ? `${Math.round(position.accuracy)}m` : 'N/A',
           address: position.address || 'Address not available',
