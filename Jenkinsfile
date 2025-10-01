@@ -7,27 +7,44 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Prepare Workspace') {
             steps {
-                checkout scm
+                cleanWs()
+
+                dir('traccar') {
+                    git url: 'https://github.com/sherkenhoff/traccar.git',
+                        branch: 'add-radius-search'
+                }
+
+                dir('traccar/traccar-web') {
+                    deleteDir()
+                }
+
+                dir('traccar/traccar-web') {
+                    checkout scm
+                }
             }
         }
 
         stage('Build') {
             steps {
-                sh '''
-                  npm ci --prefer-offline --no-audit --no-fund --cache /tmp/npm-cache
-                  npm run build
-                '''
+                dir('traccar/traccar-web') {
+                    sh '''
+                      npm ci --prefer-offline --no-audit --no-fund --cache /tmp/npm-cache
+                      npm run build
+                    '''
+                }
             }
         }
         
 
         stage('Package') {
             steps {
-                sh '''
-                  tar -C build -czf traccar-web.tar.gz .
-                '''
+                dir('traccar/traccar-web') {
+                    sh '''
+                      tar -C build -czf traccar-web.tar.gz .
+                    '''
+                }
             }
         }
 
