@@ -5,7 +5,7 @@ import { formatTime, formatSpeed } from '../../common/util/formatter';
 import { useAttributePreference } from '../../common/util/preferences';
 import { useSelector } from 'react-redux';
 import maplibregl from 'maplibre-gl';
-import { useTranslation } from '../common/components/LocalizationProvider';
+import { useTranslation } from '../../common/components/LocalizationProvider';
 
 const DEVICE_COLORS = [
   '#FF6B6B',
