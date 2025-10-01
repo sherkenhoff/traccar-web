@@ -3,7 +3,6 @@ pipeline {
         docker {
             label 'docker && linux'
             image 'node:20-alpine'
-            args '-e HOME=/home/jenkins'
         }
     }
 
@@ -17,8 +16,7 @@ pipeline {
         stage('Build') {
             steps {
                 sh '''
-                  mkdir -p ${HOME}
-                  npm ci
+                  npm ci --prefer-offline --no-audit --no-fund --cache /tmp/npm-cache
                   npm run build
                 '''
             }
