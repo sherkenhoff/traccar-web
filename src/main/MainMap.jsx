@@ -19,8 +19,6 @@ import MapScale from '../map/MapScale';
 import MapNotification from '../map/notification/MapNotification';
 import MapRadiusSearchResults from '../map/main/MapRadiusSearchResults';
 import useFeatures from '../common/util/useFeatures';
-import { map } from '../map/core/MapView';
-import fetchOrThrow from '../common/util/fetchOrThrow';
 
 const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSearchResults, radiusSearchInfo, onRadiusSearch }) => {
   const theme = useTheme();
@@ -58,7 +56,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSea
     performSearch();
   };
 
-  const onMapReady = useCallback(() => {
+  useEffect(() => {
     const mapContainer = map.getContainer();
 
     const handleDragOver = (e) => {
@@ -70,9 +68,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSea
     const handleDrop = (e) => {
       if (e.dataTransfer.types.includes('application/traccar-radius-search')) {
         e.preventDefault();
-        const rect = mapContainer.getBoundingClientRect();
-        const point = [e.clientX - rect.left, e.clientY - rect.top];
-        const { lng, lat } = map.unproject(point);
+        const { lng, lat } = map.unproject(e.point);
         handleRadiusSearch(lng, lat);
       }
     };
@@ -88,7 +84,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSea
 
   return (
     <>
-      <MapView onMapReady={onMapReady}>
+      <MapView>
         <MapOverlay />
         <MapGeofence />
         <MapAccuracy positions={filteredPositions} />
