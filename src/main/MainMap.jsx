@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
@@ -33,54 +33,6 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, radiusSea
   const onMarkerClick = useCallback((_, deviceId) => {
     dispatch(devicesActions.selectId(deviceId));
   }, [dispatch]);
-
-  const handleRadiusSearch = (longitude, latitude) => {
-    const performSearch = async () => {
-      try {
-        const query = new URLSearchParams({
-          deviceId: 0, // Search all devices
-          from: '1970-01-01T00:00:00Z',
-          to: new Date().toISOString(),
-          longitude,
-          latitude,
-          radius: 1000, // Default 1km
-        });
-
-        const response = await fetchOrThrow(`/api/reports/route?${query.toString()}`);
-        const results = await response.json();
-        onRadiusSearch(results, { longitude, latitude, radius: 1000 });
-      } catch (error) {
-        console.error('Radius search failed:', error);
-      }
-    };
-    performSearch();
-  };
-
-  useEffect(() => {
-    const mapContainer = map.getContainer();
-
-    const handleDragOver = (e) => {
-      if (e.dataTransfer.types.includes('application/traccar-radius-search')) {
-        e.preventDefault();
-      }
-    };
-
-    const handleDrop = (e) => {
-      if (e.dataTransfer.types.includes('application/traccar-radius-search')) {
-        e.preventDefault();
-        const { lng, lat } = map.unproject(e.point);
-        handleRadiusSearch(lng, lat);
-      }
-    };
-
-    mapContainer.addEventListener('dragover', handleDragOver);
-    mapContainer.addEventListener('drop', handleDrop);
-
-    return () => {
-      mapContainer.removeEventListener('dragover', handleDragOver);
-      mapContainer.removeEventListener('drop', handleDrop);
-    };
-  }, [handleRadiusSearch]);
 
   return (
     <>
