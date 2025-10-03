@@ -477,7 +477,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         setCurrentRadius(newRadius);
       };
 
-      const onMouseUp = (upEvent) => {
+      const onMouseUp = async (upEvent) => {
         map.getCanvas().style.cursor = '';
         map.off('mousemove', onMouseMove);
         map.off('mouseup', onMouseUp);
@@ -487,7 +487,22 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         const finalRadius = upEvent.lngLat.distanceTo(center);
         
         if (onSearch) {
-          onSearch({ ...searchInfo, radius: finalRadius });
+          // Perform the actual search with the new radius
+          try {
+            const params = new URLSearchParams({
+              latitude: searchInfo.latitude.toString(),
+              longitude: searchInfo.longitude.toString(),
+              radius: finalRadius.toString(),
+            });
+
+            const response = await fetch(`/api/positions/radius?${params}`);
+            const newResults = await response.json();
+            
+            // Call onSearch with the new results and updated search info
+            onSearch(newResults, { ...searchInfo, radius: finalRadius });
+          } catch (error) {
+            console.error('Resize search failed:', error);
+          }
         }
       };
 
