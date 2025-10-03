@@ -152,6 +152,7 @@ const RadiusSearch = ({ onResultsFound }) => {
         ref={searchRef}
         onClick={handleSearchPanelOpen}
         title={t('Radius Search')}
+        onDragStart={(e) => e.dataTransfer.setData('application/traccar-radius-search', 'true')}
       >
         <SearchIcon />
       </IconButton>
