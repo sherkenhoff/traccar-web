@@ -146,6 +146,18 @@ const RadiusSearch = ({ onResultsFound }) => {
     setSearchAnchorEl(searchRef.current);
   };
 
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    handleSearch();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
   return (
     <>
       <IconButton 
@@ -168,82 +180,100 @@ const RadiusSearch = ({ onResultsFound }) => {
         <div className={classes.searchPanel}>
           <Typography variant="h6">Radius Search</Typography>
           
-          <TextField
-            label="Location Name"
-            value={locationName}
-            onChange={(e) => setLocationName(e.target.value)}
-            placeholder="e.g. Detroit Zoo, Central Park"
-            size="small"
-            fullWidth
-          />
-          
-          <Typography variant="body2" color="textSecondary" align="center">
-            - OR -
-          </Typography>
-          
-          <div className={classes.coordinateRow}>
+          <form onSubmit={handleFormSubmit}>
             <TextField
-              label="Latitude"
-              value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
-              type="number"
+              id="location-name"
+              name="locationName"
+              label="Location Name"
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="e.g. Detroit Zoo, Central Park"
               size="small"
               fullWidth
             />
+            
+            <Typography variant="body2" color="textSecondary" align="center" sx={{ my: 1 }}>
+              - OR -
+            </Typography>
+            
+            <div className={classes.coordinateRow}>
+              <TextField
+                id="latitude"
+                name="latitude"
+                label="Latitude"
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                onKeyDown={handleKeyDown}
+                type="number"
+                size="small"
+                fullWidth
+              />
+              <TextField
+                id="longitude"
+                name="longitude"
+                label="Longitude"
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                onKeyDown={handleKeyDown}
+                type="number"
+                size="small"
+                fullWidth
+              />
+              <IconButton 
+                onClick={getCurrentLocation}
+                title="Use Current Location"
+                aria-label="Use Current Location"
+                size="small"
+              >
+                <MyLocationIcon />
+              </IconButton>
+            </div>
+
             <TextField
-              label="Longitude"
-              value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
+              id="radius"
+              name="radius"
+              label="Radius (meters)"
+              value={radius}
+              onChange={(e) => setRadius(e.target.value)}
+              onKeyDown={handleKeyDown}
               type="number"
               size="small"
               fullWidth
+              sx={{ mt: 1 }}
             />
-            <IconButton 
-              onClick={getCurrentLocation}
-              title="Use Current Location"
-              size="small"
-            >
-              <MyLocationIcon />
-            </IconButton>
-          </div>
 
-          <TextField
-            label="Radius (meters)"
-            value={radius}
-            onChange={(e) => setRadius(e.target.value)}
-            type="number"
-            size="small"
-            fullWidth
-          />
+            <FormControl size="small" fullWidth sx={{ mt: 1 }}>
+              <InputLabel htmlFor="device-id">Device (Optional)</InputLabel>
+              <Select
+                id="device-id"
+                name="deviceId"
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+                label="Device (Optional)"
+              >
+                <MenuItem value="">All Devices</MenuItem>
+                {Object.values(devices).map((device) => (
+                  <MenuItem key={device.id} value={device.id}>
+                    {device.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          <FormControl size="small" fullWidth>
-            <InputLabel>Device (Optional)</InputLabel>
-            <Select
-              value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-              label="Device (Optional)"
-            >
-              <MenuItem value="">All Devices</MenuItem>
-              {Object.values(devices).map((device) => (
-                <MenuItem key={device.id} value={device.id}>
-                  {device.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <div className={classes.actionButtons}>
-            <Button onClick={clearSearch} disabled={loading}>
-              Clear
-            </Button>
-            <Button 
-              variant="contained" 
-              onClick={handleSearch}
-              disabled={loading}
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </Button>
-          </div>
+            <div className={classes.actionButtons} sx={{ mt: 2 }}>
+              <Button onClick={clearSearch} disabled={loading}>
+                Clear
+              </Button>
+              <Button 
+                type="submit"
+                variant="contained" 
+                disabled={loading}
+              >
+                {loading ? 'Searching...' : 'Search'}
+              </Button>
+            </div>
+          </form>
         </div>
       </Popover>
     </>
