@@ -300,6 +300,65 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         });
       }
       
+      // Remove any existing event handlers to prevent stacking
+      map.off('click', resultsLayerId);
+      map.off('mouseenter', resultsLayerId);
+      map.off('mouseleave', resultsLayerId);
+      
+      // Add click handler for popups
+      map.on('click', resultsLayerId, (e) => {
+        e.preventDefault();
+        e.originalEvent.stopPropagation();
+        
+        const feature = e.features[0];
+        const props = feature.properties;
+        
+        // Close existing popup
+        if (popup) {
+          popup.remove();
+        }
+        
+        // Create popup content
+        const popupContent = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.4;">
+            <div style="font-weight: bold; color: ${props.deviceColor}; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+              ${props.deviceName}
+            </div>
+            <div style="margin-bottom: 4px;"><strong>Time:</strong> ${props.fixTime}</div>
+            <div style="margin-bottom: 4px;"><strong>Location:</strong> ${props.latitude}, ${props.longitude}</div>
+            ${props.speed !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Speed:</strong> ${props.speed}</div>` : ''}
+            ${props.altitude !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Altitude:</strong> ${props.altitude}</div>` : ''}
+            ${props.accuracy !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Accuracy:</strong> ${props.accuracy}</div>` : ''}
+            ${props.address !== 'Address not available' ? `<div style="margin-bottom: 4px; font-size: 12px; color: #666;"><strong>Address:</strong> ${props.address}</div>` : ''}
+          </div>
+        `;
+        
+        // Create new popup
+        const newPopup = new maplibregl.Popup({
+          offset: [0, -10],
+          closeButton: true,
+          closeOnClick: false,
+        })
+          .setLngLat(feature.geometry.coordinates)
+          .setHTML(popupContent)
+          .addTo(map);
+          
+        // Handle popup close events
+        newPopup.on('close', () => {
+          setPopup(null);
+        });
+          
+        setPopup(newPopup);
+      });
+      
+      // Change cursor on hover
+      map.on('mouseenter', resultsLayerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      
+      map.on('mouseleave', resultsLayerId, () => {
+        map.getCanvas().style.cursor = '';
+      });
 
 
       // Smart pan-to-center: Only pan if we're not already close to the search location
@@ -325,10 +384,14 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     }
 
     return () => {
-      // Clean up layers and sources
+      // Clean up event handlers
       if (map.getLayer(resultsLayerId)) {
+        map.off('click', resultsLayerId);
+        map.off('mouseenter', resultsLayerId);
+        map.off('mouseleave', resultsLayerId);
         map.removeLayer(resultsLayerId);
       }
+      // Clean up layers and sources
       if (map.getLayer(`${radiusLayerId}-outline`)) {
         map.removeLayer(`${radiusLayerId}-outline`);
       }
@@ -356,57 +419,8 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     };
   }, [results, searchInfo, devices, theme, currentRadius, speedUnit, t]); // Removed 'popup' from dependencies to prevent redrawing
 
-  // Separate useEffect for handling popup interactions to prevent event handler stacking
+  // Handle clicking outside popup to close it
   useEffect(() => {
-    if (!map.getLayer(resultsLayerId)) {
-      return;
-    }
-
-    const handleMarkerClick = (e) => {
-      e.preventDefault();
-      e.originalEvent.stopPropagation();
-      
-      const feature = e.features[0];
-      const props = feature.properties;
-      
-      // Close existing popup
-      if (popup) {
-        popup.remove();
-      }
-      
-      // Create popup content
-      const popupContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.4;">
-          <div style="font-weight: bold; color: ${props.deviceColor}; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
-            ${props.deviceName}
-          </div>
-          <div style="margin-bottom: 4px;"><strong>Time:</strong> ${props.fixTime}</div>
-          <div style="margin-bottom: 4px;"><strong>Location:</strong> ${props.latitude}, ${props.longitude}</div>
-          ${props.speed !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Speed:</strong> ${props.speed}</div>` : ''}
-          ${props.altitude !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Altitude:</strong> ${props.altitude}</div>` : ''}
-          ${props.accuracy !== 'N/A' ? `<div style="margin-bottom: 4px;"><strong>Accuracy:</strong> ${props.accuracy}</div>` : ''}
-          ${props.address !== 'Address not available' ? `<div style="margin-bottom: 4px; font-size: 12px; color: #666;"><strong>Address:</strong> ${props.address}</div>` : ''}
-        </div>
-      `;
-      
-      // Create new popup
-      const newPopup = new maplibregl.Popup({
-        offset: [0, -10],
-        closeButton: true,
-        closeOnClick: false,
-      })
-        .setLngLat(feature.geometry.coordinates)
-        .setHTML(popupContent)
-        .addTo(map);
-        
-      // Handle popup close events
-      newPopup.on('close', () => {
-        setPopup(null);
-      });
-        
-      setPopup(newPopup);
-    };
-
     const handleMapClick = (e) => {
       // Check if click was on a result marker
       const clickedFeatures = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] });
@@ -432,26 +446,10 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
     };
 
-    const handleMouseEnter = () => {
-      map.getCanvas().style.cursor = 'pointer';
-    };
-
-    const handleMouseLeave = () => {
-      map.getCanvas().style.cursor = '';
-    };
-
-    // Add event handlers
-    map.on('click', resultsLayerId, handleMarkerClick);
     map.on('click', handleMapClick);
-    map.on('mouseenter', resultsLayerId, handleMouseEnter);
-    map.on('mouseleave', resultsLayerId, handleMouseLeave);
 
     return () => {
-      // Clean up event handlers
-      map.off('click', resultsLayerId, handleMarkerClick);
       map.off('click', handleMapClick);
-      map.off('mouseenter', resultsLayerId, handleMouseEnter);
-      map.off('mouseleave', resultsLayerId, handleMouseLeave);
     };
   }, [resultsLayerId, popup]);
 
@@ -460,6 +458,80 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       setCurrentRadius(searchInfo.radius);
     }
   }, [searchInfo]);
+  useEffect(() => {
+    const handleMapClick = (e) => {
+      // Check if click was on a result marker
+      const clickedFeatures = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] });
+      if (clickedFeatures.length > 0) {
+        return; // Let the marker click handler deal with it
+      }
+
+      // Check if click was inside a popup
+      const popupElements = document.querySelectorAll('.maplibregl-popup');
+      let clickedInsidePopup = false;
+      
+      for (const popupEl of popupElements) {
+        if (popupEl.contains(e.originalEvent.target)) {
+          clickedInsidePopup = true;
+          break;
+        }
+      }
+
+      // Close popup if clicked outside
+      if (!clickedInsidePopup && popup) {
+        popup.remove();
+        setPopup(null);
+      }
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [resultsLayerId, popup]);
+
+  useEffect(() => {
+    if (searchInfo) {
+      setCurrentRadius(searchInfo.radius);
+    }
+  }, [searchInfo]);
+
+
+
+  // Handle clicking outside popup to close it
+  useEffect(() => {
+    const handleMapClick = (e) => {
+      // Check if click was on a result marker
+      const clickedFeatures = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] });
+      if (clickedFeatures.length > 0) {
+        return; // Let the marker click handler deal with it
+      }
+
+      // Check if click was inside a popup
+      const popupElements = document.querySelectorAll('.maplibregl-popup');
+      let clickedInsidePopup = false;
+      
+      for (const popupEl of popupElements) {
+        if (popupEl.contains(e.originalEvent.target)) {
+          clickedInsidePopup = true;
+          break;
+        }
+      }
+
+      // Close popup if clicked outside
+      if (!clickedInsidePopup && popup) {
+        popup.remove();
+        setPopup(null);
+      }
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [resultsLayerId, popup]);
 
   useEffect(() => {
     const onMouseDown = (e) => {
