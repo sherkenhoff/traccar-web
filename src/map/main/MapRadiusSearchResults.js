@@ -297,6 +297,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         // Close existing popup
         if (popup) {
           popup.remove();
+          setPopup(null);
         }
         
         // Create popup content
@@ -399,7 +400,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
       if (map.getSource(centerSourceId)) {
         map.removeSource(centerSourceId);
-      }
       }
     };
   }, [results, searchInfo, devices, theme, currentRadius, speedUnit, t]); // Removed 'popup' from dependencies to prevent redrawing
