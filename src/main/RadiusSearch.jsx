@@ -244,9 +244,10 @@ const RadiusSearch = ({ onResultsFound }) => {
             />
 
             <FormControl size="small" fullWidth sx={{ mt: 1 }}>
-              <InputLabel htmlFor="device-id">Device (Optional)</InputLabel>
+              <InputLabel id="device-select-label">Device (Optional)</InputLabel>
               <Select
-                id="device-id"
+                labelId="device-select-label"
+                id="device-select"
                 name="deviceId"
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
