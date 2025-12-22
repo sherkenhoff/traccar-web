@@ -62,8 +62,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const resultsLayerId = `${id}-results-layer`;
   const radiusLayerId = `${id}-radius-layer`;
   const centerLayerId = `${id}-center-layer`;
-  const resizeHandleSourceId = `${id}-resize-handle`;
-  const resizeHandleLayerId = `${id}-resize-handle-layer`;
 
   // Separate effect for popup cleanup to avoid redrawing map layers
   useEffect(() => {
@@ -106,9 +104,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       if (map.getLayer(centerLayerId)) {
         map.removeLayer(centerLayerId);
       }
-      if (map.getLayer(resizeHandleLayerId)) {
-        map.removeLayer(resizeHandleLayerId);
-      }
       if (map.getSource(resultsSourceId)) {
         map.removeSource(resultsSourceId);
       }
@@ -117,9 +112,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
       if (map.getSource(centerSourceId)) {
         map.removeSource(centerSourceId);
-      }
-      if (map.getSource(resizeHandleSourceId)) {
-        map.removeSource(resizeHandleSourceId);
       }
       return;
     }
@@ -198,43 +190,25 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       });
     }
 
-    // Add resize handle
-    const earthRadius = 6371000;
-    const lonOffset = (currentRadius / earthRadius) * (180 / Math.PI) / Math.cos((searchInfo.latitude * Math.PI) / 180);
-    const handleFeature = {
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [searchInfo.longitude + lonOffset, searchInfo.latitude],
-      },
-      properties: {
-        isHandle: true,
-      },
-    };
+    // Add cursor handlers for radius outline (resize)
+    map.off('mouseenter', `${radiusLayerId}-outline`);
+    map.off('mouseleave', `${radiusLayerId}-outline`);
+    map.on('mouseenter', `${radiusLayerId}-outline`, () => {
+      map.getCanvas().style.cursor = 'ew-resize';
+    });
+    map.on('mouseleave', `${radiusLayerId}-outline`, () => {
+      map.getCanvas().style.cursor = '';
+    });
 
-    if (map.getSource(resizeHandleSourceId)) {
-      map.getSource(resizeHandleSourceId).setData(handleFeature);
-    } else {
-      map.addSource(resizeHandleSourceId, {
-        type: 'geojson',
-        data: handleFeature,
-      });
-    }
-
-    if (!map.getLayer(resizeHandleLayerId)) {
-      map.addLayer({
-        id: resizeHandleLayerId,
-        type: 'circle',
-        source: resizeHandleSourceId,
-        paint: {
-          'circle-radius': 10,
-          'circle-color': theme.palette.primary.main,
-          'circle-opacity': 0.9,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2,
-        },
-      });
-    }
+    // Add cursor handlers for center marker (move)
+    map.off('mouseenter', centerLayerId);
+    map.off('mouseleave', centerLayerId);
+    map.on('mouseenter', centerLayerId, () => {
+      map.getCanvas().style.cursor = 'grab';
+    });
+    map.on('mouseleave', centerLayerId, () => {
+      map.getCanvas().style.cursor = '';
+    });
 
     // Add center marker for search location
     const centerFeature = {
@@ -417,9 +391,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       if (map.getLayer(centerLayerId)) {
         map.removeLayer(centerLayerId);
       }
-      if (map.getLayer(resizeHandleLayerId)) {
-        map.removeLayer(resizeHandleLayerId);
-      }
       if (map.getSource(resultsSourceId)) {
         map.removeSource(resultsSourceId);
       }
@@ -429,8 +400,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       if (map.getSource(centerSourceId)) {
         map.removeSource(centerSourceId);
       }
-      if (map.getSource(resizeHandleSourceId)) {
-        map.removeSource(resizeHandleSourceId);
       }
     };
   }, [results, searchInfo, devices, theme, currentRadius, speedUnit, t]); // Removed 'popup' from dependencies to prevent redrawing
@@ -477,21 +446,26 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     }
   }, [searchInfo]);
 
+  // Handle drag interactions for radius resizing and center moving
   useEffect(() => {
-    const onMouseDown = (e) => {
-      if (e.features.length === 0 || !e.features[0].properties.isHandle) {
-        return;
-      }
+    if (!searchInfo) return;
 
-      console.log('🎯 Started resizing radius handle');
+    // Handler for radius outline dragging (resize)
+    const onRadiusMouseDown = (e) => {
+      console.log('📏 Starting radius resize');
       e.preventDefault();
-      map.getCanvas().style.cursor = 'grabbing';
+      map.getCanvas().style.cursor = 'ew-resize';
       setIsResizing(true);
+
+      // Close any open popups
+      if (popup) {
+        popup.remove();
+        setPopup(null);
+      }
 
       const onMouseMove = (moveEvent) => {
         const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
         const newRadius = moveEvent.lngLat.distanceTo(center);
-        // console.log('📏 Resizing radius to:', Math.round(newRadius) + 'm'); // Commented out to avoid spam
         setCurrentRadius(newRadius);
       };
 
@@ -504,11 +478,10 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
         const finalRadius = upEvent.lngLat.distanceTo(center);
         
-        console.log('✅ Finished resizing radius to:', Math.round(finalRadius) + 'm');
+        console.log('📏 Radius resized to:', Math.round(finalRadius) + 'm');
+        console.log('🔍 New search triggered by radius change');
         
         if (onSearch) {
-          console.log('🔄 Performing new search with updated radius...');
-          // Perform the actual search with the new radius
           try {
             const params = new URLSearchParams({
               latitude: searchInfo.latitude.toString(),
@@ -519,8 +492,6 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
             const response = await fetch(`/api/positions/radius?${params}`);
             const newResults = await response.json();
             
-            console.log('✨ Search completed, found', newResults.length, 'results');
-            // Call onSearch with the new results and updated search info
             onSearch(newResults, { ...searchInfo, radius: finalRadius });
           } catch (error) {
             console.error('❌ Resize search failed:', error);
@@ -532,12 +503,86 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       map.on('mouseup', onMouseUp);
     };
 
-    map.on('mousedown', resizeHandleLayerId, onMouseDown);
+    // Handler for center marker dragging (move search center)
+    const onCenterMouseDown = (e) => {
+      console.log('🎯 Starting center move');
+      e.preventDefault();
+      map.getCanvas().style.cursor = 'grabbing';
+
+      // Close any open popups
+      if (popup) {
+        popup.remove();
+        setPopup(null);
+      }
+
+      const onMouseMove = (moveEvent) => {
+        // Update the center marker position in real-time during drag
+        const newCoords = [moveEvent.lngLat.lng, moveEvent.lngLat.lat];
+        if (map.getSource(centerSourceId)) {
+          map.getSource(centerSourceId).setData({
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: newCoords,
+            },
+            properties: {
+              isCenter: true,
+            },
+          });
+        }
+
+        // Update radius circle position
+        if (map.getSource(radiusSourceId)) {
+          const radiusFeature = createCircleFeature(moveEvent.lngLat.lng, moveEvent.lngLat.lat, currentRadius);
+          map.getSource(radiusSourceId).setData(radiusFeature);
+        }
+      };
+
+      const onMouseUp = async (upEvent) => {
+        map.getCanvas().style.cursor = '';
+        map.off('mousemove', onMouseMove);
+        map.off('mouseup', onMouseUp);
+
+        const finalCoords = upEvent.lngLat;
+        
+        console.log('🎯 Center moved to:', finalCoords.lat.toFixed(6) + ', ' + finalCoords.lng.toFixed(6));
+        console.log('🔍 New search triggered by center change');
+        
+        if (onSearch) {
+          try {
+            const params = new URLSearchParams({
+              latitude: finalCoords.lat.toString(),
+              longitude: finalCoords.lng.toString(),
+              radius: currentRadius.toString(),
+            });
+
+            const response = await fetch(`/api/positions/radius?${params}`);
+            const newResults = await response.json();
+            
+            onSearch(newResults, { 
+              latitude: finalCoords.lat, 
+              longitude: finalCoords.lng, 
+              radius: currentRadius 
+            });
+          } catch (error) {
+            console.error('❌ Center move search failed:', error);
+          }
+        }
+      };
+
+      map.on('mousemove', onMouseMove);
+      map.on('mouseup', onMouseUp);
+    };
+
+    // Add event handlers
+    map.on('mousedown', `${radiusLayerId}-outline`, onRadiusMouseDown);
+    map.on('mousedown', centerLayerId, onCenterMouseDown);
 
     return () => {
-      map.off('mousedown', resizeHandleLayerId, onMouseDown);
+      map.off('mousedown', `${radiusLayerId}-outline`, onRadiusMouseDown);
+      map.off('mousedown', centerLayerId, onCenterMouseDown);
     };
-  }, [searchInfo, onSearch, resizeHandleLayerId]);
+  }, [searchInfo, onSearch, currentRadius, popup, centerSourceId, radiusSourceId, centerLayerId, radiusLayerId]);
 
   return null;
 };
