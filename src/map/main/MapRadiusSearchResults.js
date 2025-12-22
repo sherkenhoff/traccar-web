@@ -79,7 +79,9 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
   useEffect(() => {
     const onZoomEnd = () => {
+      console.log('🔍 Map zoom ended at level:', Math.round(map.getZoom() * 10) / 10);
       if (popup) {
+        console.log('❌ Popup closed due to zoom');
         popup.remove();
         setPopup(null);
       }
@@ -307,6 +309,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       
       // Add click handler for popups
       map.on('click', resultsLayerId, (e) => {
+        console.log('🔍 Marker clicked:', e.features[0].properties.deviceName);
         e.preventDefault();
         e.originalEvent.stopPropagation();
         
@@ -345,9 +348,11 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           
         // Handle popup close events
         newPopup.on('close', () => {
+          console.log('❌ Popup closed');
           setPopup(null);
         });
           
+        console.log('📋 Popup opened for device:', props.deviceName);
         setPopup(newPopup);
       });
       
@@ -441,6 +446,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
       // Close popup if clicked outside
       if (!clickedInsidePopup && popup) {
+        console.log('🖱️ Clicked outside popup - closing');
         popup.remove();
         setPopup(null);
       }
@@ -455,83 +461,10 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
 
   useEffect(() => {
     if (searchInfo) {
+      console.log('📏 Radius updated to:', searchInfo.radius + 'm');
       setCurrentRadius(searchInfo.radius);
     }
   }, [searchInfo]);
-  useEffect(() => {
-    const handleMapClick = (e) => {
-      // Check if click was on a result marker
-      const clickedFeatures = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] });
-      if (clickedFeatures.length > 0) {
-        return; // Let the marker click handler deal with it
-      }
-
-      // Check if click was inside a popup
-      const popupElements = document.querySelectorAll('.maplibregl-popup');
-      let clickedInsidePopup = false;
-      
-      for (const popupEl of popupElements) {
-        if (popupEl.contains(e.originalEvent.target)) {
-          clickedInsidePopup = true;
-          break;
-        }
-      }
-
-      // Close popup if clicked outside
-      if (!clickedInsidePopup && popup) {
-        popup.remove();
-        setPopup(null);
-      }
-    };
-
-    map.on('click', handleMapClick);
-
-    return () => {
-      map.off('click', handleMapClick);
-    };
-  }, [resultsLayerId, popup]);
-
-  useEffect(() => {
-    if (searchInfo) {
-      setCurrentRadius(searchInfo.radius);
-    }
-  }, [searchInfo]);
-
-
-
-  // Handle clicking outside popup to close it
-  useEffect(() => {
-    const handleMapClick = (e) => {
-      // Check if click was on a result marker
-      const clickedFeatures = map.queryRenderedFeatures(e.point, { layers: [resultsLayerId] });
-      if (clickedFeatures.length > 0) {
-        return; // Let the marker click handler deal with it
-      }
-
-      // Check if click was inside a popup
-      const popupElements = document.querySelectorAll('.maplibregl-popup');
-      let clickedInsidePopup = false;
-      
-      for (const popupEl of popupElements) {
-        if (popupEl.contains(e.originalEvent.target)) {
-          clickedInsidePopup = true;
-          break;
-        }
-      }
-
-      // Close popup if clicked outside
-      if (!clickedInsidePopup && popup) {
-        popup.remove();
-        setPopup(null);
-      }
-    };
-
-    map.on('click', handleMapClick);
-
-    return () => {
-      map.off('click', handleMapClick);
-    };
-  }, [resultsLayerId, popup]);
 
   useEffect(() => {
     const onMouseDown = (e) => {
@@ -539,6 +472,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         return;
       }
 
+      console.log('🎯 Started resizing radius handle');
       e.preventDefault();
       map.getCanvas().style.cursor = 'grabbing';
       setIsResizing(true);
@@ -546,6 +480,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       const onMouseMove = (moveEvent) => {
         const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
         const newRadius = moveEvent.lngLat.distanceTo(center);
+        // console.log('📏 Resizing radius to:', Math.round(newRadius) + 'm'); // Commented out to avoid spam
         setCurrentRadius(newRadius);
       };
 
@@ -558,7 +493,10 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         const center = new maplibregl.LngLat(searchInfo.longitude, searchInfo.latitude);
         const finalRadius = upEvent.lngLat.distanceTo(center);
         
+        console.log('✅ Finished resizing radius to:', Math.round(finalRadius) + 'm');
+        
         if (onSearch) {
+          console.log('🔄 Performing new search with updated radius...');
           // Perform the actual search with the new radius
           try {
             const params = new URLSearchParams({
@@ -570,10 +508,11 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
             const response = await fetch(`/api/positions/radius?${params}`);
             const newResults = await response.json();
             
+            console.log('✨ Search completed, found', newResults.length, 'results');
             // Call onSearch with the new results and updated search info
             onSearch(newResults, { ...searchInfo, radius: finalRadius });
           } catch (error) {
-            console.error('Resize search failed:', error);
+            console.error('❌ Resize search failed:', error);
           }
         }
       };
