@@ -295,8 +295,9 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         const props = feature.properties;
         
         // Close existing popup
-        if (popup) {
-          popup.remove();
+        if (popupRef.current) {
+          popupRef.current.remove();
+          popupRef.current = null;
           setPopup(null);
         }
         
@@ -328,10 +329,12 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
         // Handle popup close events
         newPopup.on('close', () => {
           console.log('❌ Popup closed');
+          popupRef.current = null;
           setPopup(null);
         });
           
         console.log('📋 Popup opened for device:', props.deviceName);
+        popupRef.current = newPopup;
         setPopup(newPopup);
       };
       
@@ -425,9 +428,10 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
 
       // Close popup if clicked outside
-      if (!clickedInsidePopup && popup) {
+      if (!clickedInsidePopup && popupRef.current) {
         console.log('🖱️ Clicked outside popup - closing');
-        popup.remove();
+        popupRef.current.remove();
+        popupRef.current = null;
         setPopup(null);
       }
     };
@@ -437,7 +441,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     return () => {
       map.off('click', handleMapClick);
     };
-  }, [resultsLayerId, popup]);
+  }, [resultsLayerId, popupRef.current]);
 
   useEffect(() => {
     if (searchInfo) {
@@ -458,8 +462,9 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       setIsResizing(true);
 
       // Close any open popups
-      if (popup) {
-        popup.remove();
+      if (popupRef.current) {
+        popupRef.current.remove();
+        popupRef.current = null;
         setPopup(null);
       }
 
@@ -510,8 +515,9 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       map.getCanvas().style.cursor = 'grabbing';
 
       // Close any open popups
-      if (popup) {
-        popup.remove();
+      if (popupRef.current) {
+        popupRef.current.remove();
+        popupRef.current = null;
         setPopup(null);
       }
 
@@ -582,7 +588,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       map.off('mousedown', `${radiusLayerId}-outline`, onRadiusMouseDown);
       map.off('mousedown', centerLayerId, onCenterMouseDown);
     };
-  }, [searchInfo, onSearch, currentRadius, popup, centerSourceId, radiusSourceId, centerLayerId, radiusLayerId]);
+  }, [searchInfo, onSearch, currentRadius, popupRef.current, centerSourceId, radiusSourceId, centerLayerId, radiusLayerId]);
 
   return null;
 };
