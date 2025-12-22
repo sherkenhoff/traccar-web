@@ -51,6 +51,7 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
   const devices = useSelector((state) => state.devices.items);
   const [popup, setPopup] = useState(null);
   const popupRef = useRef(null);
+  const markerClickHandlerRef = useRef(null);
   const [currentRadius, setCurrentRadius] = useState(searchInfo ? searchInfo.radius : 0);
   const [isResizing, setIsResizing] = useState(false);
   const speedUnit = useAttributePreference('speedUnit');
@@ -303,12 +304,15 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
       }
       
       // Remove any existing event handlers to prevent stacking
-      map.off('click', resultsLayerId);
+      if (markerClickHandlerRef.current) {
+        map.off('click', resultsLayerId, markerClickHandlerRef.current);
+        markerClickHandlerRef.current = null;
+      }
       map.off('mouseenter', resultsLayerId);
       map.off('mouseleave', resultsLayerId);
       
-      // Add click handler for popups
-      map.on('click', resultsLayerId, (e) => {
+      // Create click handler function
+      const clickHandler = (e) => {
         console.log('🔍 Marker clicked:', e.features[0].properties.deviceName);
         e.preventDefault();
         e.originalEvent.stopPropagation();
@@ -354,7 +358,11 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
           
         console.log('📋 Popup opened for device:', props.deviceName);
         setPopup(newPopup);
-      });
+      };
+      
+      // Store the handler reference and add it to the map
+      markerClickHandlerRef.current = clickHandler;
+      map.on('click', resultsLayerId, clickHandler);
       
       // Change cursor on hover
       map.on('mouseenter', resultsLayerId, () => {
@@ -391,7 +399,10 @@ const MapRadiusSearchResults = ({ results, searchInfo, onSearch }) => {
     return () => {
       // Clean up event handlers
       if (map.getLayer(resultsLayerId)) {
-        map.off('click', resultsLayerId);
+        if (markerClickHandlerRef.current) {
+          map.off('click', resultsLayerId, markerClickHandlerRef.current);
+          markerClickHandlerRef.current = null;
+        }
         map.off('mouseenter', resultsLayerId);
         map.off('mouseleave', resultsLayerId);
         map.removeLayer(resultsLayerId);
